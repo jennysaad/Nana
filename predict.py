@@ -11,7 +11,7 @@ from utils import load_dataset, extract_features, majority_vote, build_dataset_f
 #
 # Usage:
 #   python predict.py                                      # xgboost + default folders
-#   python predict.py --model catboost AD:testing/AD CN:testing/CN
+#   python predict.py --model catboost
 # =================================================================
 
 VALID_MODELS = ["xgboost", "catboost", "random_forest", "lightgbm"]
@@ -28,9 +28,9 @@ def run_predict(sources, model_name="xgboost"):
 
     returns: list of dicts with subject, prediction, confidence
     """
-    build_dataset_from_sources(sources, "testingset.pt")
+    build_dataset_from_sources(sources, "datasets/testingset.pt")
 
-    X_rbp, X_scc, y_tensor, groups = load_dataset("testingset.pt")
+    X_rbp, X_scc, y_tensor, groups = load_dataset("datasets/testingset.pt")
     X = extract_features(X_rbp, X_scc)
     y = y_tensor.squeeze().numpy().astype(int)
 
@@ -41,11 +41,13 @@ def run_predict(sources, model_name="xgboost"):
     subj_preds, subj_trues = majority_vote(pred, y, groups)
 
     results = []
-    for subject, prediction, confidence in zip(np.unique(groups), subj_preds, proba):
+    for subject, prediction in zip(np.unique(groups), subj_preds):
+        mask = groups == subject
+        avg_confidence = round(float(np.mean(proba[mask])) * 100, 2)
         results.append({
             "subject":    str(subject),
             "prediction": "AD" if prediction == 1 else "CN",
-            "confidence": round(float(confidence) * 100, 2)
+            "confidence": avg_confidence
         })
 
     return results
@@ -69,7 +71,7 @@ if __name__ == "__main__":
         sources.append((path, 1 if label_str.upper() == "AD" else 0))
 
     if not sources:
-        sources = [("testing/AD", 1), ("testing/CN", 0)]
+        sources = [("testing/AD vs CN", 1)]
 
     results = run_predict(sources, model_name)
     rows = [[r["subject"], r["prediction"], f"{r['confidence']:.2f}%"] for r in results]
