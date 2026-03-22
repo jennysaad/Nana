@@ -1,8 +1,9 @@
 from startercode import load_npy, generate_dataset
 from pathlib import Path
 import torch
+import pandas as pd
 
-# TARGET_LENGTH = 128 * 300 # this relates to the time taken to create the dataset
+labels_df = pd.read_csv('training/train_label_mapping.csv')
 
 # define file paths
 AD_path = Path('training/AD')
@@ -12,32 +13,34 @@ filesAD = sorted([f for f in AD_path.iterdir() if f.is_file()])
 filesCN = sorted([f for f in CN_path.iterdir() if f.is_file()])
 
 # containers
-data_list = []
-labels = []
-subject_ids = []
+data_list = [] # Will hold numpy arrays (brain recordings)
+labels = [] # Will hold integers (0 = healthy, 1 = AD)
+subject_ids = [] # Will hold integers (subject ID numbers)
 
-# load ad -- label 1
-for path in filesAD:
-    data = load_npy(path)  # (channels, time)
+# Drop non AD/CN subjects
+task_df = labels_df[labels_df['label'].isin(['A', 'C'])].copy()
+task_df['binary_label'] = task_df['label'].map({'A': 1, 'C': 0})
+valid_ids = set(task_df['anonymized_id'].values)
 
-    id = path.stem  # filename without .npy
+# Load EEG files
+for folder, label_value in [(AD_path, 1), (CN_path, 0)]:
+    for path in sorted(folder.iterdir()):
+        if not path.is_file() or path.suffix != '.npy':
+            continue
 
-    data_list.append(data)
-    labels.append(1)
-    subject_ids.append(id)
+        subject_id = int(path.stem)
 
-# load cn -- label 0
-for path in filesCN:
-    data = load_npy(path)  # (channels, time)
+        # skip subjects not in our filtered CSV list
+        if subject_id not in valid_ids:
+            continue
 
-    id = path.stem  # filename without .npy
+        data = load_npy(path)  # (channels, time)
 
-    data_list.append(data)
-    labels.append(0)
-    subject_ids.append(id)
+        data_list.append(data)
+        labels.append(label_value)
+        subject_ids.append(subject_id)
 
-# # reduce dataset size
-# data_list = reduce_eeg_size(data_list, TARGET_LENGTH)
+        duration_min = data.shape[1] / 128 / 60
 
 # generate dataset
 X_rbp, X_scc, y, groups = generate_dataset(
