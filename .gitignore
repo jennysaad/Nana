@@ -1,5 +1,8 @@
 # added
-echo "data/" >> .gitignore
+#echo "data/" >> .gitignore
+# added
+data/
+node_modules/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
