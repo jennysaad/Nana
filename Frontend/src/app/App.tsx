@@ -160,8 +160,24 @@ export default function App() {
       <header className="bg-primary border-b-4 border-accent">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex-1 text-center">
-              <h1 className="text-xl text-white">Naana</h1>
+            <div className="flex-1 flex justify-center items-center">
+              <div className="flex items-center justify-center mx-auto">
+                <h1
+                  className="text-3xl font-extrabold text-white tracking-wide text-center"
+                  style={{
+                    fontFamily: "Georgia, serif",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Nana
+                </h1>
+                <ImageWithFallback
+                  src={"/src/app/components/LogoTransparent.png"}
+                  alt="Nana Logo"
+                  className="w-24 h-24 object-contain inline-block align-middle ml-0.5"
+                  style={{ marginTop: -2 }}
+                />
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button
