@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
+import joblib
 
 # models
 from xgboost import XGBClassifier
@@ -110,3 +111,6 @@ final_rows = [[
     f"{roc_auc_score(y_test, final_proba):.4f}",
 ]]
 print(tabulate(final_rows, headers=["Model", "Accuracy", "F1", "AUC"], tablefmt="rounded_outline"))
+
+joblib.dump(final_model, "xgboost_model.pkl")
+print("Model saved to xgboost_model.pkl")

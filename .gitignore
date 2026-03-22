@@ -210,5 +210,6 @@ __marimo__/
 .DS_Store
 
 training/
+testing/
 
 /Frontend/node_modules
