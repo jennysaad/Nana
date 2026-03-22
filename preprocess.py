@@ -3,57 +3,64 @@ from pathlib import Path
 import torch
 import pandas as pd
 
-labels_df = pd.read_csv('training/train_label_mapping.csv')
+# =================================================================
+# PREPROCESS.PY
+# This script loads all EEG recordings, extracts features using
+# the starter's generate_dataset() function, and saves everything
+# to disk as dataset.pt so model_training.py can load it.
+# =================================================================
+
+# TARGET_LENGTH = 128 * 300 # this relates to the time taken to create the dataset
 
 # define file paths
 AD_path = Path('training/AD')
 CN_path = Path('training/CN')
 
-filesAD = sorted([f for f in AD_path.iterdir() if f.is_file()])
-filesCN = sorted([f for f in CN_path.iterdir() if f.is_file()])
+# Check that both folders actually exist before we try to load from them
+assert AD_path.exists(), f"ERROR: AD folder not found at {AD_path}"
+assert CN_path.exists(), f"ERROR: CN folder not found at {CN_path}"
 
-# containers
-data_list = [] # Will hold numpy arrays (brain recordings)
-labels = [] # Will hold integers (0 = healthy, 1 = AD)
-subject_ids = [] # Will hold integers (subject ID numbers)
+# Get a sorted list of every .npy file in each folder
+filesAD = sorted([f for f in AD_path.iterdir() if f.is_file() and f.suffix == '.npy'])
+filesCN = sorted([f for f in CN_path.iterdir() if f.is_file() and f.suffix == '.npy'])
 
-# Drop non AD/CN subjects
-task_df = labels_df[labels_df['label'].isin(['A', 'C'])].copy()
-task_df['binary_label'] = task_df['label'].map({'A': 1, 'C': 0})
-valid_ids = set(task_df['anonymized_id'].values)
+# containers - 3 parallel lists
+data_list = []      # will hold numpy arrays (19, num_timepoints)
+labels = []         # will hold integers: 1 = AD, 0 = CN
+subject_ids = []    # will hold integers: the subject ID number
 
-# Load EEG files
-for folder, label_value in [(AD_path, 1), (CN_path, 0)]:
-    for path in sorted(folder.iterdir()):
-        if not path.is_file() or path.suffix != '.npy':
-            continue
+# load ad -- label 1
+for path in filesAD:
+    data = load_npy(path)           # (channels, time) - returns a numpy array
 
-        subject_id = int(path.stem)
+    id = int(path.stem)             # extracts filename without .npy
 
-        # skip subjects not in our filtered CSV list
-        if subject_id not in valid_ids:
-            continue
+    data_list.append(data)
+    labels.append(1)                # AD = 1
+    subject_ids.append(id)
 
-        data = load_npy(path)  # (channels, time)
+# load cn -- label 0
+for path in filesCN:
+    data = load_npy(path)           # (channels, time)
 
-        data_list.append(data)
-        labels.append(label_value)
-        subject_ids.append(subject_id)
+    id = int(path.stem)             # filename without .npy
 
-        duration_min = data.shape[1] / 128 / 60
+    data_list.append(data)
+    labels.append(0)                # CN = 0
+    subject_ids.append(id)
 
-# generate dataset
+# generate dataset - generate dataset
 X_rbp, X_scc, y, groups = generate_dataset(
-    data_list,
-    labels,
-    subject_ids,
-    sfreq=128
+    data_list,      # our list of raw EEG arrays
+    labels,         # our list of labels: 1=AD, 0=CN
+    subject_ids,    # our list of subject ID integers
+    sfreq=128       # downsample to 128 Hz
 )
 
-# save dataset to pt file
+# save dataset to pt file - save to disk
 torch.save({
     "X_rbp": X_rbp,
     "X_scc": X_scc,
-    "y": y.squeeze(),
-    "groups": groups
+    "y": y.squeeze(),           # removes extra dimension: (N,1) → (N,)
+    "groups": groups    
 }, "dataset.pt")
