@@ -9,11 +9,22 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
+# =================================================================
+# MODEL_TRAINING.PY
+# This script loads the features saved by preprocess.py,
+# flattens them into a format sklearn can use, splits by subject
+# to avoid data leakage, trains four models, and compares them.
+# =================================================================
+
+# Load what preprocess.py saved. This gives us back:
+# X_rbp, X_scc: the features (num_windows, 30, 5, 19)
+# y: the labels (num_windows,) — 0 or 1
+# groups: subject ID for each window (num_windows,)
 data = torch.load("dataset.pt", weights_only=False)
 
 X_rbp = data["X_rbp"]       # shape (N, 30, 5, 19)
 X_scc = data["X_scc"]       # shape (N, 30, 5, 19) 
-y_tensor = data["y"]               # shape (N,) -- 0 or 1
+y_tensor = data["y"]        # shape (N,) -- 0 or 1
 groups = data["groups"]     # array of ids -- filename that data was extracted from
 
 # Input - X_rbp and X_scc: (N, 30, 5, 19)
@@ -34,18 +45,21 @@ rbp_np = X_rbp.numpy()
 scc_np = X_scc.numpy()
 
 # Calculate mean and std across the time slices
+# (num_windows, 30, 5, 19) → (num_windows, 5, 19)
 rbp_mean = np.mean(rbp_np, axis=1)
 scc_mean = np.mean(scc_np, axis=1)
 rbp_std  = np.std(rbp_np, axis=1, ddof=1)
 scc_std  = np.std(scc_np, axis=1, ddof=1)
 
 # Flatten from 2D to 1D
+# (num_windows, 5, 19) → (num_windows, 95)
 rbp_mean_flat = rbp_mean.reshape(len(rbp_mean), -1)
 scc_mean_flat = scc_mean.reshape(len(scc_mean), -1)
 rbp_std_flat  = rbp_std.reshape(len(rbp_std), -1)
 scc_std_flat  = scc_std.reshape(len(scc_std), -1)
 
 # Concatenate all four arrays
+# mean_rbp (95) + mean_scc (95) + std_rbp (95) + std_scc (95) = 380 features
 X = np.hstack([rbp_mean_flat, scc_mean_flat, rbp_std_flat, scc_std_flat])
 
 # Convert labels from pytorch format to 0 and 1
