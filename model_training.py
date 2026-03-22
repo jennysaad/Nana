@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, roc_auc_score
@@ -12,7 +13,7 @@ data = torch.load("dataset.pt", weights_only=False)
 
 X_rbp = data["X_rbp"]       # shape (N, 30, 5, 19)
 X_scc = data["X_scc"]       # shape (N, 30, 5, 19) 
-y = data["y"]               # shape (N,) -- 0 or 1
+y_tensor = data["y"]               # shape (N,) -- 0 or 1
 groups = data["groups"]     # array of ids -- filename that data was extracted from
 
 # Input - X_rbp and X_scc: (N, 30, 5, 19)
@@ -28,30 +29,35 @@ groups = data["groups"]     # array of ids -- filename that data was extracted f
 #   Take freq and channel, compute their mean across time. same with std. then concatenate
 # Option two clearly maintains greater accuracy. We will proceed with it
 
-# Calculate mean and std
-mean_rbp = torch.mean(X_rbp, dim=1)
-mean_scc = torch.mean(X_scc, dim=1)
+# Convert from pytorch tensors to numpy arrays
+rbp_np = X_rbp.numpy()
+scc_np = X_scc.numpy()
 
-std_rbp = torch.std(X_rbp, dim=1)
-std_scc = torch.std(X_scc, dim=1)
+# Calculate mean and std across the time slices
+rbp_mean = np.mean(rbp_np, axis=1)
+scc_mean = np.mean(scc_np, axis=1)
+rbp_std  = np.std(rbp_np, axis=1, ddof=1)
+scc_std  = np.std(scc_np, axis=1, ddof=1)
 
-# Flatten data from 2d-1d
-flattened_m_r = torch.flatten(mean_rbp, start_dim=1)
-flattened_m_s = torch.flatten(mean_scc, start_dim=1)
-flattened_s_r = torch.flatten(std_rbp, start_dim=1)
-flattened_s_s = torch.flatten(std_scc, start_dim=1)
+# Flatten from 2D to 1D
+rbp_mean_flat = rbp_mean.reshape(len(rbp_mean), -1)
+scc_mean_flat = scc_mean.reshape(len(scc_mean), -1)
+rbp_std_flat  = rbp_std.reshape(len(rbp_std), -1)
+scc_std_flat  = scc_std.reshape(len(scc_std), -1)
 
-# Concatenate four tensors together
-concatenated_data = torch.cat([flattened_m_r, flattened_m_s, flattened_s_r, flattened_s_s], dim=1)
+# Concatenate all four arrays
+X = np.hstack([rbp_mean_flat, scc_mean_flat, rbp_std_flat, scc_std_flat])
 
-# Convert to numpy array
-input_data = concatenated_data.numpy()
-output_data = y.numpy()
+# Convert labels from pytorch format to 0 and 1
+y = y_tensor.squeeze().numpy().astype(int)
+
+# Replace any broken values (e.g. NaN or Infinity) to 0
+X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
 
 # Split data - 80% for training, 20% for testing
 X_train, X_test, y_train, y_test = train_test_split(
-    input_data, 
-    output_data, 
+    X, 
+    y, 
     test_size=0.2, 
     random_state=42, 
     stratify=y

@@ -1,4 +1,4 @@
-from startercode import load_npy, reduce_eeg_size, generate_dataset
+from startercode import load_npy, generate_dataset
 from pathlib import Path
 import torch
 
@@ -46,8 +46,6 @@ X_rbp, X_scc, y, groups = generate_dataset(
     subject_ids,
     sfreq=128
 )
-
-print('generated')
 
 # save dataset to pt file
 torch.save({
