@@ -1,6 +1,7 @@
 from startercode import load_npy, generate_dataset
 from pathlib import Path
 import torch
+import pandas as pd
 
 # =================================================================
 # PREPROCESS.PY
@@ -48,8 +49,7 @@ for path in filesCN:
     labels.append(0)                # CN = 0
     subject_ids.append(id)
 
-# # reduce dataset size
-# data_list = reduce_eeg_size(data_list, TARGET_LENGTH)
+    # duration_min = data.shape[1] / 128 / 60
 
 # generate dataset - generate dataset
 X_rbp, X_scc, y, groups = generate_dataset(
